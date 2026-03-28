@@ -1,3 +1,4 @@
 .vscode
 .clangd
 .cargo
+compile_commands.json

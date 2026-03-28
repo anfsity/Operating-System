@@ -26,35 +26,76 @@
 
 #include "word_count.h"
 
-void init_words(word_count_list_t* wclist) { /* TODO */
-}
+typedef struct list_elem list_elem_t;
 
-size_t len_words(word_count_list_t* wclist) {
-  /* TODO */
-  return 0;
-}
+/* Initialize a word count list. */
+void init_words(word_count_list_t *wclist) { list_init(wclist); }
 
-word_count_t* find_word(word_count_list_t* wclist, char* word) {
-  /* TODO */
+// 我真得喷这个神人 hw 设计了, 给我写红温了说是
+// 哪个神人想出来的隐藏实现细节??? 隐藏就算了, 引导也是一拖.
+// 我艹了, 我就问, 你他妈讲清楚了吗? 这么个简单的东西, 硬要弄得这么复杂
+// 是人类吗? 逼着学生把你的 .o 反汇编出来看懂逻辑是吗?
+// 还不如纯纯实现一个侵入式双向链表, 不必这傻逼 word count 强?
+// 服了...
+
+size_t len_words(word_count_list_t *wclist) { return list_size(wclist); }
+
+/*
+typedef struct word_count {
+  char* word;
+  int count;
+  struct list_elem elem;
+} word_count_t;
+*/
+
+word_count_t *find_word(word_count_list_t *wclist, char *word) {
+  for (list_elem_t *e = list_begin(wclist); e != list_end(wclist);
+       e = list_next(e)) {
+    word_count_t *word_ct = list_entry(e, word_count_t, elem);
+    if (strcmp(word_ct->word, word) == 0) {
+      return word_ct;
+    }
+  }
   return NULL;
 }
 
-word_count_t* add_word(word_count_list_t* wclist, char* word) {
-  /* TODO */
-  return NULL;
+word_count_t *add_word(word_count_list_t *wclist, char *word) {
+  word_count_t *wc = find_word(wclist, word);
+
+  if (wc != NULL) {
+    wc->count++;
+    free(word);
+    return wc;
+  }
+
+  wc = malloc(sizeof(word_count_t));
+  wc->count = 1;
+  wc->word = word;
+  list_push_back(wclist, &wc->elem);
+
+  return wc;
 }
 
-void fprint_words(word_count_list_t* wclist, FILE* outfile) {
-  /* TODO */
+void fprint_words(word_count_list_t *wclist, FILE *outfile) {
+  for (list_elem_t *e = list_begin(wclist); e != list_end(wclist);
+       e = list_next(e)) {
+    word_count_t *word_ct = list_entry(e, word_count_t, elem);
+    fprintf(outfile, "%i\t%s\n", word_ct->count, word_ct->word);
+  }
   /* Please follow this format: fprintf(<file>, "%i\t%s\n", <count>, <word>); */
 }
 
-static bool less_list(const struct list_elem* ewc1, const struct list_elem* ewc2, void* aux) {
-  /* TODO */
-  return false;
+static bool less_list(const struct list_elem *ewc1,
+                      const struct list_elem *ewc2, void *aux) {
+  bool (*less)(const word_count_t *, const word_count_t *) = aux;
+
+  word_count_t *wc_a = list_entry(ewc1, word_count_t, elem);
+  word_count_t *wc_b = list_entry(ewc2, word_count_t, elem);
+
+  return less(wc_a, wc_b);
 }
 
-void wordcount_sort(word_count_list_t* wclist,
-                    bool less(const word_count_t*, const word_count_t*)) {
+void wordcount_sort(word_count_list_t *wclist,
+                    bool less(const word_count_t *, const word_count_t *)) {
   list_sort(wclist, less_list, less);
 }

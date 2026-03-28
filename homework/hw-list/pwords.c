@@ -22,20 +22,38 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <ctype.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <string.h>
-#include <ctype.h>
 #include <stdlib.h>
-#include <pthread.h>
+#include <string.h>
 
 #include "word_count.h"
 #include "word_helpers.h"
 
+typedef struct thread_args {
+  char *file_name;
+  word_count_list_t *wclist;
+} thread_args_t;
+
+void *thread_runner(void *arg) {
+  thread_args_t *args = (thread_args_t *)(arg);
+  FILE *f = fopen(args->file_name, "r");
+  if (f) {
+    count_words(args->wclist, f);
+  } else {
+    perror(args->file_name);
+  }
+
+  free(args);
+  return NULL;
+}
+
 /*
  * main - handle command line, spawning one thread per file.
  */
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   /* Create the empty data structure. */
   word_count_list_t word_counts;
   init_words(&word_counts);
@@ -44,7 +62,25 @@ int main(int argc, char* argv[]) {
     /* Process stdin in a single thread. */
     count_words(&word_counts, stdin);
   } else {
-    /* TODO */
+    int files_num = argc - 1;
+    pthread_t threads[files_num];
+
+    for (int i = 0; i < files_num; ++i) {
+      thread_args_t *args = malloc(sizeof(thread_args_t));
+      args->file_name = argv[i + 1];
+      args->wclist = &word_counts;
+
+      int rc = pthread_create(&threads[i], NULL, thread_runner, args);
+
+      if (rc) {
+        printf("ERROR; return code from pthread_create() is %d\n", rc);
+        exit(-1);
+      }
+    }
+
+    for (int i = 0; i < files_num; ++i) {
+      pthread_join(threads[i], NULL);
+    }
   }
 
   /* Output final result of all threads' work. */

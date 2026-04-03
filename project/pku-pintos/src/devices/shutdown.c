@@ -1,11 +1,11 @@
 #include "devices/shutdown.h"
-#include <console.h>
-#include <stdio.h>
 #include "devices/kbd.h"
 #include "devices/serial.h"
 #include "devices/timer.h"
 #include "threads/io.h"
 #include "threads/thread.h"
+#include <console.h>
+#include <stdio.h>
 #ifdef USERPROG
 #include "userprog/exception.h"
 #endif
@@ -25,40 +25,37 @@ static void print_stats (void);
 /** Shuts down the machine in the way configured by
    shutdown_configure().  If the shutdown type is SHUTDOWN_NONE
    (which is the default), returns without doing anything. */
-void
-shutdown (void)
+void shutdown (void)
 {
   switch (how)
     {
-    case SHUTDOWN_POWER_OFF:
-      shutdown_power_off ();
-      break;
+      case SHUTDOWN_POWER_OFF:
+        shutdown_power_off ();
+        break;
 
-    case SHUTDOWN_REBOOT:
-      shutdown_reboot ();
-      break;
+      case SHUTDOWN_REBOOT:
+        shutdown_reboot ();
+        break;
 
-    default:
-      /* Nothing to do. */
-      break;
+      default:
+        /* Nothing to do. */
+        break;
     }
 }
 
 /** Sets TYPE as the way that machine will shut down when Pintos
    execution is complete. */
-void
-shutdown_configure (enum shutdown_type type)
+void shutdown_configure (enum shutdown_type type)
 {
   how = type;
 }
 
 /** Reboots the machine via the keyboard controller. */
-void
-shutdown_reboot (void)
+void shutdown_reboot (void)
 {
   printf ("Rebooting...\n");
 
-    /* See [kbd] for details on how to program the keyboard
+  /* See [kbd] for details on how to program the keyboard
      * controller. */
   for (;;)
     {
@@ -84,8 +81,7 @@ shutdown_reboot (void)
 
 /** Powers down the machine we're running on,
    as long as we're running on Bochs or QEMU. */
-void
-shutdown_power_off (void)
+void shutdown_power_off (void)
 {
   const char s[] = "Shutdown";
   const char *p;
@@ -121,7 +117,8 @@ shutdown_power_off (void)
 
   /* None of those worked. */
   printf ("still running...\n");
-  for (;;);
+  for (;;)
+    ;
 }
 
 /** Print statistics about Pintos execution. */

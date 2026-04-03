@@ -14,18 +14,17 @@
    Greg Hutchins <gmh@leland.stanford.edu>, Yu Ping Hu
    <yph@cs.stanford.edu>.  Modified by arens. */
 
-#include <stdio.h>
 #include "tests/threads/tests.h"
 #include "threads/init.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <stdio.h>
 
 static thread_func a_thread_func;
 static thread_func b_thread_func;
 static thread_func c_thread_func;
 
-void
-test_priority_donate_multiple2 (void) 
+void test_priority_donate_multiple2 (void)
 {
   struct lock a, b;
 
@@ -62,7 +61,7 @@ test_priority_donate_multiple2 (void)
 }
 
 static void
-a_thread_func (void *lock_) 
+a_thread_func (void *lock_)
 {
   struct lock *lock = lock_;
 
@@ -73,7 +72,7 @@ a_thread_func (void *lock_)
 }
 
 static void
-b_thread_func (void *lock_) 
+b_thread_func (void *lock_)
 {
   struct lock *lock = lock_;
 
@@ -84,7 +83,7 @@ b_thread_func (void *lock_)
 }
 
 static void
-c_thread_func (void *a_ UNUSED) 
+c_thread_func (void *a_ UNUSED)
 {
   msg ("Thread c finished.");
 }

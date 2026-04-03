@@ -7,16 +7,15 @@
    any action, or the kernel should terminate the process with a
    -1 exit code. */
 
+#include "tests/lib.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <syscall.h>
-#include "tests/lib.h"
 
 const char *test_name = "child-close";
 
-int
-main (int argc UNUSED, char *argv[]) 
+int main (int argc UNUSED, char *argv[])
 {
   msg ("begin");
   if (!isdigit (*argv[1]))

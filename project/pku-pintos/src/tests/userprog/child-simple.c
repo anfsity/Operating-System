@@ -2,13 +2,12 @@
    wait-twice tests.
    Just prints a single message and terminates. */
 
-#include <stdio.h>
 #include "tests/lib.h"
+#include <stdio.h>
 
 const char *test_name = "child-simple";
 
-int
-main (void) 
+int main (void)
 {
   msg ("run");
   return 81;

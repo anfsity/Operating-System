@@ -57,8 +57,7 @@ is_tail (struct list_elem *elem)
 }
 
 /** Initializes LIST as an empty list. */
-void
-list_init (struct list *list)
+void list_init (struct list *list)
 {
   ASSERT (list != NULL);
   list->head.prev = NULL;
@@ -100,7 +99,7 @@ list_end (struct list *list)
 /** Returns the LIST's reverse beginning, for iterating through
    LIST in reverse order, from back to front. */
 struct list_elem *
-list_rbegin (struct list *list) 
+list_rbegin (struct list *list)
 {
   ASSERT (list != NULL);
   return list->tail.prev;
@@ -130,7 +129,7 @@ list_prev (struct list_elem *elem)
         }
 */
 struct list_elem *
-list_rend (struct list *list) 
+list_rend (struct list *list)
 {
   ASSERT (list != NULL);
   return &list->head;
@@ -148,7 +147,7 @@ list_rend (struct list *list)
         }
 */
 struct list_elem *
-list_head (struct list *list) 
+list_head (struct list *list)
 {
   ASSERT (list != NULL);
   return &list->head;
@@ -156,7 +155,7 @@ list_head (struct list *list)
 
 /** Return's LIST's tail. */
 struct list_elem *
-list_tail (struct list *list) 
+list_tail (struct list *list)
 {
   ASSERT (list != NULL);
   return &list->tail;
@@ -165,8 +164,7 @@ list_tail (struct list *list)
 /** Inserts ELEM just before BEFORE, which may be either an
    interior element or a tail.  The latter case is equivalent to
    list_push_back(). */
-void
-list_insert (struct list_elem *before, struct list_elem *elem)
+void list_insert (struct list_elem *before, struct list_elem *elem)
 {
   ASSERT (is_interior (before) || is_tail (before));
   ASSERT (elem != NULL);
@@ -180,9 +178,8 @@ list_insert (struct list_elem *before, struct list_elem *elem)
 /** Removes elements FIRST though LAST (exclusive) from their
    current list, then inserts them just before BEFORE, which may
    be either an interior element or a tail. */
-void
-list_splice (struct list_elem *before,
-             struct list_elem *first, struct list_elem *last)
+void list_splice (struct list_elem *before,
+                  struct list_elem *first, struct list_elem *last)
 {
   ASSERT (is_interior (before) || is_tail (before));
   if (first == last)
@@ -205,16 +202,14 @@ list_splice (struct list_elem *before,
 
 /** Inserts ELEM at the beginning of LIST, so that it becomes the
    front in LIST. */
-void
-list_push_front (struct list *list, struct list_elem *elem)
+void list_push_front (struct list *list, struct list_elem *elem)
 {
   list_insert (list_begin (list), elem);
 }
 
 /** Inserts ELEM at the end of LIST, so that it becomes the
    back in LIST. */
-void
-list_push_back (struct list *list, struct list_elem *elem)
+void list_push_back (struct list *list, struct list_elem *elem)
 {
   list_insert (list_end (list), elem);
 }
@@ -306,15 +301,14 @@ list_size (struct list *list)
 }
 
 /** Returns true if LIST is empty, false otherwise. */
-bool
-list_empty (struct list *list)
+bool list_empty (struct list *list)
 {
   return list_begin (list) == list_end (list);
 }
 
 /** Swaps the `struct list_elem *'s that A and B point to. */
 static void
-swap (struct list_elem **a, struct list_elem **b) 
+swap (struct list_elem **a, struct list_elem **b)
 {
   struct list_elem *t = *a;
   *a = *b;
@@ -322,10 +316,9 @@ swap (struct list_elem **a, struct list_elem **b)
 }
 
 /** Reverses the order of LIST. */
-void
-list_reverse (struct list *list)
+void list_reverse (struct list *list)
 {
-  if (!list_empty (list)) 
+  if (!list_empty (list))
     {
       struct list_elem *e;
 
@@ -343,7 +336,7 @@ is_sorted (struct list_elem *a, struct list_elem *b,
            list_less_func *less, void *aux)
 {
   if (a != b)
-    while ((a = list_next (a)) != b) 
+    while ((a = list_next (a)) != b)
       if (less (a, list_prev (a), aux))
         return false;
   return true;
@@ -362,12 +355,11 @@ find_end_of_run (struct list_elem *a, struct list_elem *b,
   ASSERT (b != NULL);
   ASSERT (less != NULL);
   ASSERT (a != b);
-  
-  do 
+
+  do
     {
       a = list_next (a);
-    }
-  while (a != b && !less (a, list_prev (a), aux));
+  } while (a != b && !less (a, list_prev (a), aux));
   return a;
 }
 
@@ -389,9 +381,9 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
   ASSERT (is_sorted (a1b0, b1, less, aux));
 
   while (a0 != a1b0 && a1b0 != b1)
-    if (!less (a1b0, a0, aux)) 
+    if (!less (a1b0, a0, aux))
       a0 = list_next (a0);
-    else 
+    else
       {
         a1b0 = list_next (a1b0);
         list_splice (a0, list_prev (a1b0), a1b0);
@@ -401,10 +393,9 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
 /** Sorts LIST according to LESS given auxiliary data AUX, using a
    natural iterative merge sort that runs in O(n lg n) time and
    O(1) space in the number of elements in LIST. */
-void
-list_sort (struct list *list, list_less_func *less, void *aux)
+void list_sort (struct list *list, list_less_func *less, void *aux)
 {
-  size_t output_run_cnt;        /**< Number of runs output in current pass. */
+  size_t output_run_cnt; /**< Number of runs output in current pass. */
 
   ASSERT (list != NULL);
   ASSERT (less != NULL);
@@ -413,9 +404,9 @@ list_sort (struct list *list, list_less_func *less, void *aux)
      nondecreasing elements, until only one run is left. */
   do
     {
-      struct list_elem *a0;     /**< Start of first run. */
-      struct list_elem *a1b0;   /**< End of first run, start of second. */
-      struct list_elem *b1;     /**< End of second run. */
+      struct list_elem *a0;   /**< Start of first run. */
+      struct list_elem *a1b0; /**< End of first run, start of second. */
+      struct list_elem *b1;   /**< End of second run. */
 
       output_run_cnt = 0;
       for (a0 = list_begin (list); a0 != list_end (list); a0 = b1)
@@ -433,8 +424,7 @@ list_sort (struct list *list, list_less_func *less, void *aux)
           /* Merge the runs. */
           inplace_merge (a0, a1b0, b1, less, aux);
         }
-    }
-  while (output_run_cnt > 1);
+  } while (output_run_cnt > 1);
 
   ASSERT (is_sorted (list_begin (list), list_end (list), less, aux));
 }
@@ -442,9 +432,8 @@ list_sort (struct list *list, list_less_func *less, void *aux)
 /** Inserts ELEM in the proper position in LIST, which must be
    sorted according to LESS given auxiliary data AUX.
    Runs in O(n) average case in the number of elements in LIST. */
-void
-list_insert_ordered (struct list *list, struct list_elem *elem,
-                     list_less_func *less, void *aux)
+void list_insert_ordered (struct list *list, struct list_elem *elem,
+                          list_less_func *less, void *aux)
 {
   struct list_elem *e;
 
@@ -462,9 +451,8 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
    set of adjacent elements that are equal according to LESS
    given auxiliary data AUX.  If DUPLICATES is non-null, then the
    elements from LIST are appended to DUPLICATES. */
-void
-list_unique (struct list *list, struct list *duplicates,
-             list_less_func *less, void *aux)
+void list_unique (struct list *list, struct list *duplicates,
+                  list_less_func *less, void *aux)
 {
   struct list_elem *elem, *next;
 
@@ -475,7 +463,7 @@ list_unique (struct list *list, struct list *duplicates,
 
   elem = list_begin (list);
   while ((next = list_next (elem)) != list_end (list))
-    if (!less (elem, next, aux) && !less (next, elem, aux)) 
+    if (!less (elem, next, aux) && !less (next, elem, aux))
       {
         list_remove (next);
         if (duplicates != NULL)
@@ -493,13 +481,13 @@ struct list_elem *
 list_max (struct list *list, list_less_func *less, void *aux)
 {
   struct list_elem *max = list_begin (list);
-  if (max != list_end (list)) 
+  if (max != list_end (list))
     {
       struct list_elem *e;
-      
+
       for (e = list_next (max); e != list_end (list); e = list_next (e))
         if (less (max, e, aux))
-          max = e; 
+          max = e;
     }
   return max;
 }
@@ -512,13 +500,13 @@ struct list_elem *
 list_min (struct list *list, list_less_func *less, void *aux)
 {
   struct list_elem *min = list_begin (list);
-  if (min != list_end (list)) 
+  if (min != list_end (list))
     {
       struct list_elem *e;
-      
+
       for (e = list_next (min); e != list_end (list); e = list_next (e))
         if (less (e, min, aux))
-          min = e; 
+          min = e;
     }
   return min;
 }

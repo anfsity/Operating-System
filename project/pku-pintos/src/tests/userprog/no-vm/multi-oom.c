@@ -15,21 +15,25 @@
    Written by Godmar Back <godmar@gmail.com>
  */
 
-#include <debug.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <syscall.h>
-#include <random.h>
 #include "tests/lib.h"
+#include <debug.h>
+#include <random.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syscall.h>
 
 static const int EXPECTED_DEPTH_TO_PASS = 30;
 static const int EXPECTED_REPETITIONS = 10;
 
 const char *test_name = "multi-oom";
 
-enum child_termination_mode { RECURSE, CRASH };
+enum child_termination_mode
+{
+  RECURSE,
+  CRASH
+};
 
 /** Spawn a recursive copy of ourselves, passing along instructions
    for the child. */
@@ -67,7 +71,7 @@ consume_some_resources_and_die (int seed)
 {
   consume_some_resources ();
   random_init (seed);
-  volatile int *PHYS_BASE = (volatile int *)0xC0000000;
+  volatile int *PHYS_BASE = (volatile int *) 0xC0000000;
 
   switch (random_ulong () % 5)
     {
@@ -84,7 +88,7 @@ consume_some_resources_and_die (int seed)
         *PHYS_BASE = 42;
 
       case 4:
-        open ((char *)PHYS_BASE);
+        open ((char *) PHYS_BASE);
         exit (-1);
 
       default:
@@ -102,8 +106,7 @@ consume_some_resources_and_die (int seed)
    Some children are started with the '-k' flag, which will
    result in abnormal termination.
  */
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
   int n;
 
@@ -113,7 +116,7 @@ main (int argc, char *argv[])
     msg ("begin");
 
   /* If -k is passed, crash this process. */
-  if (argc > 2 && !strcmp(argv[2], "-k"))
+  if (argc > 2 && !strcmp (argv[2], "-k"))
     {
       consume_some_resources_and_die (n);
       NOT_REACHED ();
@@ -129,7 +132,7 @@ main (int argc, char *argv[])
       /* Spawn a child that will be abnormally terminated.
          To speed the test up, do this only for processes
          spawned at a certain depth. */
-      if (n > EXPECTED_DEPTH_TO_PASS/2)
+      if (n > EXPECTED_DEPTH_TO_PASS / 2)
         {
           child_pid = spawn_child (n + 1, CRASH);
           if (child_pid != -1)

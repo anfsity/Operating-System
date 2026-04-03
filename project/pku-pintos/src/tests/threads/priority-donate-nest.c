@@ -9,23 +9,21 @@
    Greg Hutchins <gmh@leland.stanford.edu>, Yu Ping Hu
    <yph@cs.stanford.edu>.  Modified by arens. */
 
-#include <stdio.h>
 #include "tests/threads/tests.h"
 #include "threads/init.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <stdio.h>
 
-struct locks 
-  {
-    struct lock *a;
-    struct lock *b;
-  };
+struct locks {
+  struct lock *a;
+  struct lock *b;
+};
 
 static thread_func medium_thread_func;
 static thread_func high_thread_func;
 
-void
-test_priority_donate_nest (void) 
+void test_priority_donate_nest (void)
 {
   struct lock a, b;
   struct locks locks;
@@ -61,7 +59,7 @@ test_priority_donate_nest (void)
 }
 
 static void
-medium_thread_func (void *locks_) 
+medium_thread_func (void *locks_)
 {
   struct locks *locks = locks_;
 
@@ -83,7 +81,7 @@ medium_thread_func (void *locks_)
 }
 
 static void
-high_thread_func (void *lock_) 
+high_thread_func (void *lock_)
 {
   struct lock *lock = lock_;
 

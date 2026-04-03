@@ -2,22 +2,21 @@
    Writes into part of a test file.  Other processes will be
    writing into other parts at the same time. */
 
+#include "tests/filesys/base/syn-write.h"
+#include "tests/lib.h"
 #include <random.h>
 #include <stdlib.h>
 #include <syscall.h>
-#include "tests/lib.h"
-#include "tests/filesys/base/syn-write.h"
 
 char buf[BUF_SIZE];
 
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
   int child_idx;
   int fd;
 
   quiet = true;
-  
+
   CHECK (argc == 2, "argc must be 2, actually %d", argc);
   child_idx = atoi (argv[1]);
 

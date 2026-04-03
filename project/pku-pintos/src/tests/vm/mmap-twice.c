@@ -1,20 +1,19 @@
 /** Maps the same file into memory twice and verifies that the
    same data is readable in both. */
 
-#include <string.h>
-#include <syscall.h>
-#include "tests/vm/sample.inc"
 #include "tests/lib.h"
 #include "tests/main.h"
+#include "tests/vm/sample.inc"
+#include <string.h>
+#include <syscall.h>
 
-void
-test_main (void)
+void test_main (void)
 {
   char *actual[2] = {(char *) 0x10000000, (char *) 0x20000000};
   size_t i;
   int handle[2];
 
-  for (i = 0; i < 2; i++) 
+  for (i = 0; i < 2; i++)
     {
       CHECK ((handle[i] = open ("sample.txt")) > 1,
              "open \"sample.txt\" #%zu", i);

@@ -8,30 +8,30 @@
 */
 
 #undef NDEBUG
+#include "threads/test.h"
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include "threads/test.h"
 
 /** Number of failures so far. */
 static int failure_cnt;
 
 static void
-checkf (const char *expect, const char *format, ...) 
+checkf (const char *expect, const char *format, ...)
 {
   char output[128];
   va_list args;
 
   printf ("\"%s\" -> \"%s\": ", format, expect);
-  
+
   va_start (args, format);
   vsnprintf (output, sizeof output, format, args);
   va_end (args);
 
-  if (strcmp (expect, output)) 
+  if (strcmp (expect, output))
     {
       printf ("\nFAIL: actual output \"%s\"\n", output);
       failure_cnt++;
@@ -41,8 +41,7 @@ checkf (const char *expect, const char *format, ...)
 }
 
 /** Test printf() implementation. */
-void
-test (void) 
+void test (void)
 {
   printf ("Testing formats:");
 
@@ -89,7 +88,7 @@ test (void)
   checkf ("-12,345,678,901,234,567", "%'lld", -12345678901234567LL);
   checkf ("-123,456,789,012,345,678", "%'lld", -123456789012345678LL);
   checkf ("-1,234,567,890,123,456,789", "%'lld", -1234567890123456789LL);
-  
+
   /* Check signed integer conversions. */
   checkf ("    0", "%5d", 0);
   checkf ("0    ", "%-5d", 0);
@@ -150,7 +149,7 @@ test (void)
   checkf ("    0", "%#5x", 0);
   checkf ("    0", "%#5X", 0);
   checkf ("  00000000", "%#10.8x", 0);
-  
+
   checkf ("    1", "%5u", 1);
   checkf ("    1", "%5o", 1);
   checkf ("    1", "%5x", 1);
@@ -205,4 +204,4 @@ test (void)
     printf ("\nstdio: PASS\n");
   else
     printf ("\nstdio: FAIL: %d tests failed\n", failure_cnt);
-}                                                                  
+}

@@ -7,8 +7,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-int
-main (int argc, char *argv[]) 
+int main (int argc, char *argv[])
 {
   const char *program_name = argv[0];
   double timeout;
@@ -41,7 +40,7 @@ main (int argc, char *argv[])
   else
     fprintf (stderr, "%s: invalid timeout value \"%s\"\n",
              program_name, argv[1]);
-  
+
   execvp (argv[2], &argv[2]);
   fprintf (stderr, "%s: couldn't exec \"%s\": %s\n",
            program_name, argv[2], strerror (errno));

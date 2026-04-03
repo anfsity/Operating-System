@@ -1,19 +1,18 @@
 #include "devices/speaker.h"
 #include "devices/pit.h"
-#include "threads/io.h"
-#include "threads/interrupt.h"
 #include "devices/timer.h"
+#include "threads/interrupt.h"
+#include "threads/io.h"
 
 /** Speaker port enable I/O register. */
-#define SPEAKER_PORT_GATE	0x61
+#define SPEAKER_PORT_GATE 0x61
 
 /** Speaker port enable bits. */
-#define SPEAKER_GATE_ENABLE	0x03
+#define SPEAKER_GATE_ENABLE 0x03
 
 /** Sets the PC speaker to emit a tone at the given FREQUENCY, in
    Hz. */
-void
-speaker_on (int frequency)
+void speaker_on (int frequency)
 {
   if (frequency >= 20 && frequency <= 20000)
     {
@@ -35,8 +34,7 @@ speaker_on (int frequency)
 
 /** Turn off the PC speaker, by disconnecting the timer channel's
    output from the speaker. */
-void
-speaker_off (void)
+void speaker_off (void)
 {
   enum intr_level old_level = intr_disable ();
   outb (SPEAKER_PORT_GATE, inb (SPEAKER_PORT_GATE) & ~SPEAKER_GATE_ENABLE);
@@ -44,8 +42,7 @@ speaker_off (void)
 }
 
 /** Briefly beep the PC speaker. */
-void
-speaker_beep (void)
+void speaker_beep (void)
 {
   /* Only attempt to beep the speaker if interrupts are enabled,
      because we don't want to freeze the machine during the beep.

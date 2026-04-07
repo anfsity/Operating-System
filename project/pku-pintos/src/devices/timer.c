@@ -1,6 +1,7 @@
 #include "devices/timer.h"
 #include "devices/pit.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include <debug.h>
@@ -23,11 +24,6 @@ static int64_t ticks;
 /** Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
-
-typedef struct sleep_list_elem {
-  struct list_elem elem;
-  struct thread th;
-} sleep_list_elem_t;
 
 static struct list sleep_list;
 
@@ -90,18 +86,26 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+/** Wakeup ticks auxiliary comparison function */
+static bool thread_sleep_less (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+  struct thread *tha = list_entry (a, struct thread, elem);
+  struct thread *thb = list_entry (b, struct thread, elem);
+  return tha->wakeup_ticks < thb->wakeup_ticks;
+}
+
 /** Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
-// TODO:
 void timer_sleep (int64_t ticks)
 {
   struct thread *th = thread_current ();
+  th->wakeup_ticks = timer_ticks () + ticks;
+  enum intr_level old_level = intr_disable ();
 
-  // int64_t start = timer_ticks ();
+  list_insert_ordered (&sleep_list, &th->elem, thread_sleep_less, NULL);
 
-  // ASSERT (intr_get_level () == INTR_ON);
-  // while (timer_elapsed (start) < ticks)
-  //   thread_yield ();
+  thread_block ();
+  intr_set_level (old_level);
 }
 
 /** Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -173,6 +177,19 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  while (list_size (&sleep_list) != 0u)
+    {
+      struct list_elem *sl_elem = list_begin (&sleep_list);
+      struct thread *th = list_entry (sl_elem, struct thread, elem);
+      if (th->wakeup_ticks > ticks)
+        {
+          break;
+        }
+
+      list_remove (sl_elem);
+      thread_unblock (th);
+    }
 }
 
 /** Returns true if LOOPS iterations waits for more than one timer

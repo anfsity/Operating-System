@@ -1,4 +1,5 @@
 #include "threads/thread.h"
+#include "kernel/list.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -19,6 +20,10 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
+
+#ifndef MAX
+#define MAX(a, b) ((a) > b ? (a) : (b))
+#endif
 
 /** List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -67,8 +72,36 @@ static void init_thread (struct thread *, const char *name, int priority);
 static bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
+static void thread_test_preempt (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+
+/** Help function for comparing priority of thread */
+bool thread_priority_less (const struct list_elem *lse1, const struct list_elem *lse2, void *aux UNUSED)
+{
+  struct thread *th1 = list_entry (lse1, struct thread, elem);
+  struct thread *th2 = list_entry (lse2, struct thread, elem);
+  return th1->priority > th2->priority;
+}
+
+static void thread_test_preempt (void)
+{
+  if (list_empty (&ready_list))
+    {
+      return;
+    }
+
+  struct thread *th = list_entry (list_front (&ready_list), struct thread, elem);
+  if (th->priority > thread_current ()->priority && intr_context ())
+    {
+      intr_yield_on_return ();
+    }
+
+  if (th->priority > thread_current ()->priority && !intr_context ())
+    {
+      thread_yield ();
+    }
+}
 
 /** Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -220,7 +253,12 @@ void thread_block (void)
    This function does not preempt the running thread.  This can
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
-   update other data. */
+   update other data.
+
+   When a thread is added to the ready list that has a higher 
+   priority than the currently running thread, the current
+   thread should immediately yield the processor to the new thread.
+   */
 void thread_unblock (struct thread *t)
 {
   enum intr_level old_level;
@@ -229,9 +267,11 @@ void thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, thread_priority_less, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+
+  thread_test_preempt ();
 }
 
 /** Returns the name of the running thread. */
@@ -296,8 +336,12 @@ void thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
+
   if (cur != idle_thread)
-    list_push_back (&ready_list, &cur->elem);
+    {
+      list_insert_ordered (&ready_list, &cur->elem, thread_priority_less, NULL);
+    }
+
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -320,12 +364,29 @@ void thread_foreach (thread_action_func *func, void *aux)
 }
 
 /** Sets the current thread's priority to NEW_PRIORITY. */
+// TODO: Sets the current thread's priority to NEW_PRIORITY.
 void thread_set_priority (int new_priority)
 {
-  thread_current ()->priority = new_priority;
+  thread_current ()->base_priority = new_priority;
+
+  if (list_empty (&thread_current ()->locks_held))
+    {
+      thread_current ()->priority = new_priority;
+    }
+  else
+    {
+      int donated = list_entry (list_front (&thread_current ()->locks_held), struct lock, elem)->max_priority;
+      thread_current ()->priority = MAX (new_priority, donated);
+    }
+
+  if (!list_empty (&ready_list))
+    {
+      thread_test_preempt ();
+    }
 }
 
 /** Returns the current thread's priority. */
+// TODO: returns the current thread's priority
 int thread_get_priority (void)
 {
   return thread_current ()->priority;
@@ -443,12 +504,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+  t->base_priority = priority;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
+  list_init (&t->locks_held);
 }
 
 /** Allocates a SIZE-byte frame at the top of thread T's stack and

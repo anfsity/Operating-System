@@ -178,7 +178,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
-  while (list_size (&sleep_list) != 0u)
+  while (!list_empty (&sleep_list))
     {
       struct list_elem *sl_elem = list_begin (&sleep_list);
       struct thread *th = list_entry (sl_elem, struct thread, elem);

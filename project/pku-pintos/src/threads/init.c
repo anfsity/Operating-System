@@ -85,7 +85,7 @@ int pintos_init (void)
   argv = parse_options (argv);
 
   /* Initialize ourselves as a thread so we can use locks,
-     then enable console locking. */
+  then enable console locking. */
   thread_init ();
   console_init ();
 
@@ -98,7 +98,7 @@ int pintos_init (void)
   malloc_init ();
   paging_init ();
 
-  /* Segmentation. */
+/* Segmentation. */
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
@@ -176,11 +176,11 @@ int pintos_init (void)
 }
 
 /** Clear the "BSS", a segment that should be initialized to
-   zeros.  It isn't actually stored on disk or zeroed by the
-   kernel loader, so we have to zero it ourselves.
+zeros.  It isn't actually stored on disk or zeroed by the
+kernel loader, so we have to zero it ourselves.
 
-   The start and end of the BSS segment is recorded by the
-   linker as _start_bss and _end_bss.  See kernel.lds. */
+The start and end of the BSS segment is recorded by the
+linker as _start_bss and _end_bss.  See kernel.lds. */
 static void bss_init (void)
 {
   extern char _start_bss, _end_bss;

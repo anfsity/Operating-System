@@ -190,6 +190,26 @@ timer_interrupt (struct intr_frame *args UNUSED)
       list_remove (sl_elem);
       thread_unblock (th);
     }
+
+  if (thread_mlfqs)
+    {
+
+      if (!is_idle (thread_current ()))
+        {
+          thread_current ()->recent_cpu = fp_add_int (thread_current ()->recent_cpu, 1);
+        }
+
+      if (ticks % TIMER_FREQ == 0)
+        {
+          update_load_avg ();
+          update_all_thread_recent_cpu ();
+        }
+
+      if (ticks % 4 == 0)
+        {
+          update_all_thread_priority ();
+        }
+    }
 }
 
 /** Returns true if LOOPS iterations waits for more than one timer

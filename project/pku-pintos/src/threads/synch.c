@@ -236,6 +236,15 @@ void lock_acquire (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (!lock_held_by_current_thread (lock));
+
+  // TODO:
+  if (thread_mlfqs)
+    {
+      sema_down (&lock->semaphore);
+      lock->holder = thread_current ();
+      return;
+    }
+
   enum intr_level old_level = intr_disable ();
 
   if (lock->holder != NULL)
@@ -272,13 +281,19 @@ bool lock_try_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   success = sema_try_down (&lock->semaphore);
-  if (success)
+
+  if (success && !thread_mlfqs)
     {
       lock->holder = thread_current ();
       lock->max_priority = PRI_MIN;
       list_insert_ordered (&thread_current ()->locks_held, &lock->elem, lock_priority_less, NULL);
     }
-  // lock->holder = thread_current ();
+
+  if (success && thread_mlfqs)
+    {
+      lock->holder = thread_current ();
+    }
+
   return success;
 }
 
@@ -288,11 +303,19 @@ bool lock_try_acquire (struct lock *lock)
    make sense to try to release a lock within an interrupt
    handler. */
 
-// FIXME:
 void lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+
+  if (thread_mlfqs)
+    {
+
+      lock->holder = NULL;
+      sema_up (&lock->semaphore);
+      return;
+    }
+
   enum intr_level old_level = intr_disable ();
 
   struct thread *th = thread_current ();

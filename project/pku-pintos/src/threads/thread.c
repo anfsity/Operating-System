@@ -178,7 +178,6 @@ void update_all_thread_priority (void)
 {
   enum intr_level old_level = intr_disable ();
   thread_foreach (update_thread_priority, NULL);
-  // list_sort (&ready_list, thread_priority_less, NULL);
   thread_test_preempt ();
   intr_set_level (old_level);
 }

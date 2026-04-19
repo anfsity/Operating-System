@@ -44,6 +44,11 @@ typedef struct fun_desc {
   char *doc;
 } fun_desc_t;
 
+typedef struct redirect_file {
+  char *in_file;
+  char *out_file;
+} redirect_file_t;
+
 fun_desc_t cmd_table[] = {
     {cmd_help, "?", "show this help menu"},
     {cmd_exit, "exit", "exit the command shell"},
@@ -123,11 +128,11 @@ void prompt() {
   fprintf(stdout, "%s> ", buffer);
 }
 
-void redirect(char *file_name, bool in) {
+void redirect(redirect_file_t *rd_f) {
   int fd;
 
-  if (in) {
-    fd = open(file_name, O_RDONLY);
+  if (rd_f->in_file != NULL) {
+    fd = open(rd_f->in_file, O_RDONLY);
 
     if (fd < 0) {
       perror("open input file failed");
@@ -136,12 +141,14 @@ void redirect(char *file_name, bool in) {
 
     dup2(fd, STDIN_FILENO);
     close(fd);
-  } else {
+  }
+
+  if (rd_f->out_file != NULL) {
     // O_CREAT: Create the file if it does not exist
     // O_TRUNC: Clear the contents of the file if it exists
     // O_WRONLY: Write-only mode
     // 0644: File creation permissions (rw-r--r--)
-    fd = open(file_name, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+    fd = open(rd_f->out_file, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 
     if (fd < 0) {
       perror("open outpu file failed");
@@ -153,75 +160,118 @@ void redirect(char *file_name, bool in) {
   }
 }
 
+void execute_single_cmd(char *args[], redirect_file_t *rd_f) {
+  char *path = strdup(getenv("PATH"));
+  char *ptr;
+  char *tk;
+
+  redirect(rd_f);
+
+  if (strchr(args[0], '/') != NULL) {
+    execv(args[0], args);
+  } else {
+
+    char full_path[1024];
+    tk = strtok_r(path, ":", &ptr);
+
+    while (tk != NULL) {
+      snprintf(full_path, sizeof(full_path), "%s/%s", tk, args[0]);
+      int ret = access(full_path, X_OK);
+      if (ret == 0) {
+        execv(full_path, args);
+        break;
+      }
+      tk = strtok_r(NULL, ":", &ptr);
+    }
+  }
+
+  fprintf(stderr, "%s: command not found\n", args[0]);
+  free(path);
+  exit(1);
+}
+
 int execute_cmd(struct tokens *tokens) {
-  pid_t pid = fork();
+  int len = tokens_get_length(tokens);
+  int N = 0;
 
-  if (pid < 0) {
-    perror("fork failed");
-    exit(EXIT_FAILURE);
-  } else if (pid == 0) {
-    // son process
-    char *path = strdup(getenv("PATH"));
-    char *ptr;
-    char *tk;
+  for (int i = 0; i < len; ++i) {
+    if (strcmp(tokens_get_token(tokens, i), "|") == 0)
+      N++;
+  }
 
-    char *in_file = NULL;
-    char *out_file = NULL;
+  int pipes[N][2];
+
+  for (int i = 0; i < N; ++i) {
+    int ret = pipe(pipes[i]);
+    if (ret == -1) {
+      perror("pipe failure");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  int idx = 0;
+  int cmd_nums = N + 1;
+  for (int i = 0; i < cmd_nums; ++i) {
 
     char *args[64];
     int argc = 0;
-    for (int i = 0; i < 63; ++i) {
-      tk = tokens_get_token(tokens, i);
+    redirect_file_t rd_f = {};
+    // FIXME: beacause rd_f is null, so when call rd_f->in_file , we access the
+    // NULL memory, which is a undefined behaivor...
+    char *tk;
 
-      if (tk == NULL) {
+    while (idx < len) {
+      tk = tokens_get_token(tokens, idx++);
+
+      if (strcmp(tk, "|") == 0) {
         break;
-      }
 
-      if (strcmp(tk, "<") == 0) {
-        in_file = tokens_get_token(tokens, ++i);
+      } else if (strcmp(tk, "<") == 0) {
+        rd_f.in_file = tokens_get_token(tokens, idx++);
 
       } else if (strcmp(tk, ">") == 0) {
-        out_file = tokens_get_token(tokens, ++i);
+        rd_f.out_file = tokens_get_token(tokens, idx++);
 
       } else {
         args[argc++] = tk;
       }
     }
 
-    if (in_file) {
-      redirect(in_file, 1);
+    args[argc] = NULL;
+
+    pid_t pid = fork();
+
+    if (pid == -1) {
+      perror("fork failure");
+      exit(EXIT_FAILURE);
     }
 
-    if (out_file) {
-      redirect(out_file, 0);
-    }
-
-    if (strchr(args[0], '/') != NULL) {
-      execv(args[0], args);
-    } else {
-
-      char full_path[1024];
-      tk = strtok_r(path, ":", &ptr);
-
-      while (tk != NULL) {
-        snprintf(full_path, sizeof(full_path), "%s/%s", tk, args[0]);
-        int ret = access(full_path, X_OK);
-        if (ret == 0) {
-          execv(full_path, args);
-          break;
-        }
-        tk = strtok_r(NULL, ":", &ptr);
+    if (pid == 0) {
+      if (i > 0) {
+        dup2(pipes[i - 1][0], STDIN_FILENO);
       }
+
+      if (i < N) {
+        dup2(pipes[i][1], STDOUT_FILENO);
+      }
+
+      for (int j = 0; j < N; ++j) {
+        close(pipes[j][0]);
+        close(pipes[j][1]);
+      }
+
+      execute_single_cmd(args, &rd_f);
+      exit(1);
     }
+  }
 
-    fprintf(stderr, "%s: command not found\n", args[0]);
-    free(path);
-    exit(1);
+  for (int i = 0; i < N; ++i) {
+    close(pipes[i][0]);
+    close(pipes[i][1]);
+  }
 
-  } else {
-    // parent process
-    int status;
-    waitpid(pid, &status, 0);
+  for (int i = 0; i < cmd_nums; ++i) {
+    wait(NULL);
   }
 
   return 1;

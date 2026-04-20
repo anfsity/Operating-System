@@ -33,6 +33,7 @@ int cmd_exit(struct tokens *tokens);
 int cmd_help(struct tokens *tokens);
 int cmd_pwd(struct tokens *tokens);
 int cmd_cd(struct tokens *tokens);
+int cmd_wait(struct tokens *tokens);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens *tokens);
@@ -54,6 +55,7 @@ fun_desc_t cmd_table[] = {
     {cmd_exit, "exit", "exit the command shell"},
     {cmd_pwd, "pwd", "print the name of current/working directory"},
     {cmd_cd, "cd", "change the current working directory"},
+    {cmd_wait, "wait", "wait for a process to complete before proceeding"},
 };
 
 /* Prints a helpful description for the given command */
@@ -88,12 +90,34 @@ int cmd_cd(struct tokens *tokens) {
   return 1;
 }
 
+int cmd_wait(unused struct tokens *tokens) {
+  while (wait(NULL) > 0)
+    ;
+  return 1;
+}
+
 /* Looks up the built-in command, if it exists. */
 int lookup(char cmd[]) {
   for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
     if (cmd && (strcmp(cmd_table[i].cmd, cmd) == 0))
       return i;
   return -1;
+}
+
+void ignore_sign(void) {
+  signal(SIGINT, SIG_IGN);
+  signal(SIGQUIT, SIG_IGN);
+  signal(SIGTSTP, SIG_IGN);
+  signal(SIGTTIN, SIG_IGN);
+  signal(SIGTTOU, SIG_IGN);
+}
+
+void recover_sign(void) {
+  signal(SIGINT, SIG_DFL);
+  signal(SIGQUIT, SIG_DFL);
+  signal(SIGTSTP, SIG_DFL);
+  signal(SIGTTIN, SIG_DFL);
+  signal(SIGTTOU, SIG_DFL);
 }
 
 /* Intialization procedures for this shell */
@@ -105,6 +129,7 @@ void init_shell() {
   shell_is_interactive = isatty(shell_terminal);
 
   if (shell_is_interactive) {
+    ignore_sign();
     /* If the shell is not currently in the foreground, we must pause the shell
      * until it becomes a foreground process. We use SIGTTIN to pause the shell.
      * When the shell gets moved to the foreground, we'll receive a SIGCONT. */
@@ -113,6 +138,7 @@ void init_shell() {
 
     /* Saves the shell's process id */
     shell_pgid = getpid();
+    setpgid(shell_pgid, shell_pgid);
 
     /* Take control of the terminal */
     tcsetpgrp(shell_terminal, shell_pgid);
@@ -151,7 +177,7 @@ void redirect(redirect_file_t *rd_f) {
     fd = open(rd_f->out_file, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 
     if (fd < 0) {
-      perror("open outpu file failed");
+      perror("open output file failed");
       exit(1);
     }
 
@@ -193,6 +219,7 @@ void execute_single_cmd(char *args[], redirect_file_t *rd_f) {
 int execute_cmd(struct tokens *tokens) {
   int len = tokens_get_length(tokens);
   int N = 0;
+  bool is_bg = (len > 1 && strcmp(tokens_get_token(tokens, len - 1), "&") == 0);
 
   for (int i = 0; i < len; ++i) {
     if (strcmp(tokens_get_token(tokens, i), "|") == 0)
@@ -211,19 +238,22 @@ int execute_cmd(struct tokens *tokens) {
 
   int idx = 0;
   int cmd_nums = N + 1;
+  pid_t pipeline_pgid = 0;
+
   for (int i = 0; i < cmd_nums; ++i) {
 
     char *args[64];
     int argc = 0;
     redirect_file_t rd_f = {};
-    // FIXME: beacause rd_f is null, so when call rd_f->in_file , we access the
-    // NULL memory, which is a undefined behaivor...
     char *tk;
 
     while (idx < len) {
       tk = tokens_get_token(tokens, idx++);
 
-      if (strcmp(tk, "|") == 0) {
+      if (strcmp(tk, "&") == 0) {
+        continue;
+
+      } else if (strcmp(tk, "|") == 0) {
         break;
 
       } else if (strcmp(tk, "<") == 0) {
@@ -247,6 +277,19 @@ int execute_cmd(struct tokens *tokens) {
     }
 
     if (pid == 0) {
+      recover_sign();
+
+      pid_t child_pid = getpid();
+      if (i == 0) {
+        pipeline_pgid = child_pid;
+      }
+
+      setpgid(child_pid, pipeline_pgid);
+
+      if (!is_bg && i == 0) {
+        tcsetpgrp(shell_terminal, pipeline_pgid);
+      }
+
       if (i > 0) {
         dup2(pipes[i - 1][0], STDIN_FILENO);
       }
@@ -262,6 +305,16 @@ int execute_cmd(struct tokens *tokens) {
 
       execute_single_cmd(args, &rd_f);
       exit(1);
+    } else {
+
+      if (i == 0) {
+        pipeline_pgid = pid;
+      }
+      setpgid(pid, pipeline_pgid);
+
+      if (!is_bg && i == 0) {
+        tcsetpgrp(shell_terminal, pipeline_pgid);
+      }
     }
   }
 
@@ -270,8 +323,18 @@ int execute_cmd(struct tokens *tokens) {
     close(pipes[i][1]);
   }
 
-  for (int i = 0; i < cmd_nums; ++i) {
-    wait(NULL);
+  if (!is_bg) {
+    int status;
+    for (int i = 0; i < cmd_nums; ++i) {
+      waitpid(-pipeline_pgid, &status, WUNTRACED);
+      if (WIFSTOPPED(status)) {
+        printf("\n[%d] Stopped\t%d\n", 1, pipeline_pgid);
+        break;
+      }
+    }
+    tcsetpgrp(shell_terminal, shell_pgid);
+  } else {
+    printf("[%d] %d\n", 1, pipeline_pgid);
   }
 
   return 1;
@@ -287,6 +350,10 @@ int main(unused int argc, unused char *argv[]) {
     prompt();
 
   while (fgets(line, 4096, stdin)) {
+    int status;
+    while (waitpid(-1, &status, WNOHANG) > 0)
+      ;
+
     /* Split our line into words. */
     struct tokens *tokens = tokenize(line);
 
